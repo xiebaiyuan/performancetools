@@ -6,6 +6,7 @@ import subprocess
 import numpy as np
 import paddle.fluid as fluid
 
+model_sub = "models/"
 model_path = "mobilenetv1_origin"
 checked_model_path = "checked_model"
 feed_path = "feeds"
@@ -46,35 +47,51 @@ yellow = lambda x: "\033[33m" + str(x) + "\033[0m"
 reset = lambda x: "\033[0m" + str(x)
 
 logs = []
+
+
 def pp_tab(x, level=0):
     header = ""
     for i in range(0, level):
         header += "\t"
     tmp = header + str(x)
     print(tmp)
+
+
 def pp_black(x, level=0):
     pp_tab(black(x) + reset(""), level)
+
+
 def pp_red(x, level=0):
     pp_tab(red(x) + reset(""), level)
+
+
 def pp_green(x, level=0):
     pp_tab(green(x) + reset(""), level)
+
+
 def pp_yellow(x, level=0):
     pp_tab(yellow(x) + reset(""), level)
+
 
 def sh(command):
     pipe = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     return pipe.stdout.read().decode("utf-8")
+
+
 def push(src, dest=""):
     sh("adb push {} {}".format(src, mobile_exec_root + "/" + dest))
+
 
 pp_yellow(dot + " start inspecting fluid model")
 
 exe = fluid.Executor(fluid.CPUPlace())
 exe.run(fluid.default_startup_program())
 
+
 # 加载模型
 def load_model(model_path):
-    prog, feeds, fetches = fluid.io.load_inference_model(dirname=model_path, executor=exe, model_filename="model", params_filename="params")
+    prog, feeds, fetches = fluid.io.load_inference_model(dirname=model_path, executor=exe, model_filename="model",
+                                                         params_filename="params")
     global correct_persistable
     if correct_persistable:
         ops = prog.current_block().ops
@@ -89,7 +106,9 @@ def load_model(model_path):
                     var.persistable = False
     return (prog, feeds, fetches)
 
-prog, feeds, fetches = load_model(model_path)
+
+prog, feeds, fetches = load_model(model_sub + model_path)
+
 
 # 强制要求所有张量的形状，在model和params中一致，并重新保存模型
 def resave_model(feed_kv):
@@ -128,12 +147,14 @@ def resave_model(feed_kv):
         v = fluid.framework._get_var(name, prog)
         v.persistable = False
     if not quantification:
-        fluid.io.save_inference_model(dirname=checked_model_path, feeded_var_names=feeds, target_vars=fetches, executor=exe, main_program=prog, model_filename="model", params_filename="params")
+        fluid.io.save_inference_model(dirname=checked_model_path, feeded_var_names=feeds, target_vars=fetches,
+                                      executor=exe, main_program=prog, model_filename="model", params_filename="params")
     if has_found_wrong_shape:
         pp_red("has found wrong shape", 1)
     else:
         pp_green("has not found wrong shape", 1)
     pp_green("new model is saved into directory 【{}】".format(checked_model_path), 1)
+
 
 # 分别加密model和params，加密key使用同一个
 def encrypt_model():
@@ -147,14 +168,17 @@ def encrypt_model():
 
     for line in lines:
         if line.startswith("key:"):
-            line = line.replace('key:','')
+            line = line.replace('key:', '')
             sh("model-encrypt-tool/enc_model_gen -k '{}' -c 2 -i checked_model/model -o "
                "checked_model/model.ml".format(line))
-            sh("model-encrypt-tool/enc_model_gen -k '{}' -c 2 -i checked_model/params  -o checked_model/params.ml".format(line))
+            sh(
+                "model-encrypt-tool/enc_model_gen -k '{}' -c 2 -i checked_model/params  -o checked_model/params.ml".format(
+                    line))
             pp_green("model has been encrypted, key is : {}".format(line), 1)
             sh("mv {} {}".format(checked_model_path + "/*.ml", checked_encrypt_model_path))
             return
     pp_red("model encrypt error", 1)
+
 
 # 生成feed的key-value对
 def gen_feed_kv():
@@ -164,6 +188,7 @@ def gen_feed_kv():
         data = np.random.random(feed_shape).astype("float32")
         feed_kv[feed_name] = data
     return feed_kv
+
 
 # 保存feed的key-value对
 def save_feed_kv(feed_kv):
@@ -178,9 +203,12 @@ def save_feed_kv(feed_kv):
             out_file.write("{}\n".format(feed_item))
         out_file.close()
 
+
 last_feed_var_name = None
 last_feed_file_name = None
 last_feed_var_lod = None
+
+
 # 加载feed的key-value对
 def load_feed_kv():
     if not os.path.exists(feed_path):
@@ -207,7 +235,7 @@ def load_feed_kv():
         if len(np.atleast_1d(data)) != expected_len:
             return None
         data = data.reshape(feed_shape).astype("float32")
-        
+
         if is_lod:
             data_shape = [1]
             for dim in feed_shape:
@@ -229,6 +257,7 @@ def load_feed_kv():
             feed_kv[feed_name] = data
     return feed_kv
 
+
 # 运行模型
 def run_model(feed_kv=None):
     if feed_kv is None:
@@ -238,6 +267,7 @@ def run_model(feed_kv=None):
     for output in outputs:
         results.append(np.array(output))
     return results
+
 
 # 获取变量形状
 def get_var_shape(var_name):
@@ -249,13 +279,17 @@ def get_var_shape(var_name):
             shape[i] = 1
     return shape
 
+
 # 获取输入变量形状
 def get_feed_var_shape(var_name):
     # 如果想写死输入形状，放开以下语句
     # return [1, 3, 224, 224]
     return get_var_shape(var_name)
 
+
 persistable_cache = []
+
+
 # 所有var，全部变成持久化
 def force_all_vars_to_persistable():
     global persistable_cache
@@ -266,6 +300,7 @@ def force_all_vars_to_persistable():
         if not persistable:
             persistable_cache.append(var_name)
             v.persistable = True
+
 
 # 恢复持久化属性
 def restore_all_vars_persistable():
@@ -278,12 +313,16 @@ def restore_all_vars_persistable():
             v.persistable = False
     persistable_cache = []
 
+
 # 获取var的数据
 def get_var_data(var_name, feed_kv=None):
     output = np.array(fluid.global_scope().var(var_name).get_tensor())
     return output
 
+
 output_var_cache = {}
+
+
 def tensor_sample(tensor):
     if is_sample_step:
         step = sample_step
@@ -296,7 +335,10 @@ def tensor_sample(tensor):
         sample.append(tensor[i])
     return sample
 
+
 op_cache = {}
+
+
 # 获取每层输出的数据
 def save_all_op_output(feed_kv=None):
     force_all_vars_to_persistable()
@@ -405,6 +447,7 @@ def save_all_op_output(feed_kv=None):
     pp_green("all the op outputs are saved into directory 【{}】".format(output_path), 1)
     restore_all_vars_persistable()
 
+
 ops = prog.current_block().ops
 vars = prog.current_block().vars
 
@@ -414,9 +457,12 @@ for op in ops:
     op_types.add(op.type)
 pp_tab("op types : {}".format(op_types), 1)
 
+
 def check_mobile_results(args, fuse, mem_opt):
-    args = "{} {} {} {} {}".format("1" if fuse else "0", "1" if mem_opt else "0", "1" if quantification else "0", quantification_fold, args)
-    res = sh("adb shell \"cd {} && export LD_LIBRARY_PATH=. && ./test-net-performance {}\"".format(mobile_exec_root, args))
+    args = "{} {} {} {} {}".format("1" if fuse else "0", "1" if mem_opt else "0", "1" if quantification else "0",
+                                   quantification_fold, args)
+    res = sh(
+        "adb shell \"cd {} && export LD_LIBRARY_PATH=. && ./test-net-performance {}\"".format(mobile_exec_root, args))
     lines = res.split("\n")
     # for line in lines:
     #     print(line)
@@ -594,7 +640,7 @@ def check_mobile_results(args, fuse, mem_opt):
                         v1 = values1[i]
                         v2 = values2[len(shape) + i]
                         if ((not math.isnan(v1)) and math.isnan(v2)) or abs(v1 - v2) > diff_threshold:
-                            print ('index: '+str(i) +" v1: " +str(v1)+" v2:  "+str(v2))
+                            print('index: ' + str(i) + " v1: " + str(v1) + " v2:  " + str(v2))
                             error_index = index
                             break
                 checked_names.append(op_output_var_name)
@@ -616,7 +662,7 @@ def check_mobile_results(args, fuse, mem_opt):
                 error_values2 = np.array(error_values2)
                 # pp_red("mobile op is not correct, error occurs at {}th op, op's type is {}")
                 pp_red("corresponding fluid op is {}th op, op's type is {}, wrong var name is {}".format(
-                    error_index,op_cache[error_index][1].type,op_output_var_name), 1)
+                    error_index, op_cache[error_index][1].type, op_output_var_name), 1)
                 pp_red("fluid results are : ", 1)
                 pp_red(str(error_values1).replace("\n", "\n" + "\t" * 1), 1)
                 pp_yellow("paddle mobile results are : ", 1)
@@ -624,10 +670,11 @@ def check_mobile_results(args, fuse, mem_opt):
     # print(output_var_cache)
     # print(mobile_var_cache)
 
+
 def main():
     # 加载kv
     feed_kv = load_feed_kv()
-    if feed_kv == None:
+    if feed_kv is None:
         feed_kv = gen_feed_kv()
         save_feed_kv(feed_kv)
         feed_kv = load_feed_kv()
@@ -712,7 +759,7 @@ def main():
 def save_logs():
     info_file = open("result_" + model_path + ".txt", "w")
     for log in logs:
-        info_file.write(log+"\n")
+        info_file.write(log + "\n")
     info_file.close()
 
 
