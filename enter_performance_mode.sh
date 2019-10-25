@@ -29,6 +29,19 @@ for (( i = 0; i < 8; i++ )); do
     adb shell cat "/sys/devices/system/cpu/cpu${i}/cpufreq/scaling_cur_freq"
 done
 
+echo "设置gpu最高频率: "
+
+gpu_freq=257000000
+
+adb shell "echo 1 >/sys/class/kgsl/kgsl-3d0/force_clk_on"
+
+adb shell "echo 10000000 >/sys/class/kgsl/kgsl-3d0/idle_timer"
+
+adb shell "echo performance >/sys/class/kgsl/kgsl-3d0/devfreq/governor"
+
+adb shell "echo ${gpu_freq} > /sys/class/kgsl/kgsl-3d0/gpuclk"
+
+echo "done! "
 
 #adb shell cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors
 #cpu0/cpufreq/scaling_governor

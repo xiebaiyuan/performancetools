@@ -29,8 +29,8 @@ quantification_fold = 1000
 architecture = "arm-v7a"
 # architecture = "arm-v8a"
 correct_persistable = False
-run_times = 50
-warmup = True
+run_times = 10
+warmup = False
 
 np.set_printoptions(linewidth=150)
 
