@@ -6,12 +6,12 @@ import subprocess
 import numpy as np
 import paddle.fluid as fluid
 
-model_sub = "models/"
-model_path = "mobilenetv1_origin"
-checked_model_path = "checked_model"
-feed_path = "feeds"
-output_path = "outputs"
-output_mobile_path = "outputs_mobile"
+model_sub = "/data/models/"
+model_path = "mobilenetv2_origin"
+checked_model_path =model_sub+model_path+"/""checked_model"
+feed_path = model_sub+model_path+"/""feeds"
+output_path = model_sub+model_path+"/""outputs"
+output_mobile_path = model_sub+model_path+"/""outputs_mobile"
 diff_threshold = 0.1
 is_lod = False
 mobile_model_path = ""
@@ -25,7 +25,7 @@ output_var_filter = []
 output_key_filter = {}
 check_shape = False
 quantification = False
-quantification_fold = 1000
+quantification_fold = 1000 # use this for sleep ms
 architecture = "arm-v7a"
 # architecture = "arm-v8a"
 correct_persistable = False
